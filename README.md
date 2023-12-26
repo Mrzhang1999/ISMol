@@ -10,10 +10,10 @@ python pretrain.py
 '''
 ## Fine-turning stage
 '''
-# training
+### training
 python pretrain.py with task_finetune_MoleculeNet_classify task_finetune_MoleculeNet_classify_HIA num_gpus=[1] max_steps=2000 learning_rate=1e-5 batch_size=32
 
-# testing
+### testing
 python pretrain.py with task_finetune_MoleculeNet_classify task_finetune_MoleculeNet_classify_HIA num_gpus=[1] test_only=True load_path='./ADMETlab_data/HIA/***.ckpt'
 '''
 
