@@ -259,14 +259,19 @@ def logger_mlm(pl_module, batch):
 
 
 def logger_itm(pl_module, batch):
-    images,image_false,smiles,smiles_false,*el, = batch
-    infer_ocsr = pl_module.infer(images, smiles, image_false,smiles_false, change_smi=True)
-    itm_logits = pl_module.itm_score(infer_ocsr["cls_feats"])
-    itm_labels = infer_ocsr['ocsr_labels'].to(images.device)
-    loss_itm = pl_module.focal_loss(
-        itm_logits,
-        itm_labels.long()
-    )
+    images,image_false,smiles,*el = batch
+
+    pos_len = images.size(0) // 2
+    neg_len = images.size(0) - pos_len
+    itm_labels = torch.cat([torch.ones(pos_len), torch.zeros(neg_len)]).to(images.device)
+
+    itm_labels = itm_labels[torch.randperm(itm_labels.size(0))]
+    itm_images = torch.stack(
+        [images[idx] if label == 1 else image_false[idx] for idx, label in enumerate(itm_labels)]).to(images.device)
+    infer_itm = pl_module.infer(itm_images, smiles)
+    itm_logits = pl_module.itm_score(infer_itm["cls_feats"])
+
+    loss_itm = F.cross_entropy(itm_logits, itm_labels.long())
 
     phase = "train" if pl_module.training else "val"
     loss = getattr(pl_module, f"{phase}_itm_loss")(loss_itm)  # Metrics.forwrad()
@@ -275,7 +280,6 @@ def logger_itm(pl_module, batch):
     )
     pl_module.log(f"itm/{phase}/loss", loss)
     pl_module.log(f"itm/{phase}/accuracy", acc)
-    print(f"itm accuracy:{acc}")
     return {
         "loss_itm": 8 * loss_itm,
         "acc_itm": acc,
